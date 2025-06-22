@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ルーレット</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>うさぴょい！<br>ドラテク・ルーレット</h1>
+
+  <textarea id="entries" placeholder="項目を改行で入力"></textarea><br>
+  <button id="spin-btn" onclick="spin()">回す</button><br>
+
+  <div id="container">
+    <div id="canvas-wrapper">
+        <canvas id="wheel" width="512" height="512"></canvas>
+    </div>
+    <div id="winning-banner"></div>
+  </div>
+
+  <!-- ↓ これ（<p id="result">）は削除済み -->
+
+  <script src="roulette.js"></script>
+</body>
+</html>

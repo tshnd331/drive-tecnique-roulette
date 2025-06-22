@@ -1,0 +1,134 @@
+body {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    background: #1a1a2e; /* より落ち着いたダークな背景色 */
+    color: #e0e0e0; /* 背景に合わせてテキストカラーを調整 */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* より読みやすいフォントスタック */
+    display: flex; /* flexboxで中央配置を容易にする */
+    flex-direction: column; /* 縦方向に並べる */
+    align-items: center; /* 水平方向の中央揃え */
+    min-height: 100vh; /* ビューポートの高さに合わせて最低高さを設定 */
+    justify-content: center; /* 垂直方向の中央揃え */
+    box-sizing: border-box; /* paddingやborderをwidth/heightに含める */
+}
+
+/* 全体のコンテナを調整 */
+#container {
+    position: relative;
+    display: flex; /* flexboxに変更して内部要素の配置を制御 */
+    flex-direction: column; /* 縦方向に並べる */
+    align-items: center; /* 水平方向の中央揃え */
+    width: 100%;
+}
+
+#canvas-wrapper {
+    max-width: 90%; /* 小さい画面でのオーバーフローを防ぐ */
+    width: 450px; /* ある程度の固定幅を設定 */
+    background-color: #2e2e4a; /* コンテナの背景色 */
+    margin: 20px; /* 上下のマージンと左右中央揃え */
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); /* より強い影 */
+}
+
+#wheel {
+    border: none; /* JavaScriptで描画するのでCSSのborderは不要 */
+    display: block; /* canvasの下にできる余白を削除 */
+    margin: 20px auto; /* 上下のマージンと左右中央揃え */
+    /* Canvasのwidth/heightはHTML属性で設定されているため、CSSでは特に指定しない */
+    max-width: 100%; /* 親要素に合わせて縮小 */
+    height: auto; /* アスペクト比を維持 */
+}
+
+textarea {
+    width: calc(100% - 20px); /* 親要素の幅に合わせて調整、padding分を考慮 */
+    max-width: 380px; /* 固定幅の上限を設定 */
+    height: 120px; /* 高さを少し増やす */
+    margin-top: 15px; /* マージンを調整 */
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #4a4a6e; /* 枠線の色 */
+    border-radius: 5px;
+    background-color: #3a3a5e; /* 背景色 */
+    color: #e0e0e0; /* テキストカラー */
+    font-size: 16px;
+    resize: vertical; /* 垂直方向のみリサイズ可能にする */
+    box-sizing: border-box; /* paddingやborderをwidth/heightに含める */
+}
+
+textarea::placeholder {
+    color: #a0a0b0; /* プレースホルダーの色 */
+}
+
+button {
+    margin-top: 10px;
+    padding: 12px 25px; /* パディングを少し増やす */
+    font-size: 20px; /* フォントサイズを大きくする */
+    cursor: pointer;
+    background-color: #8b0000; /* より目立つ赤色 */
+    color: white;
+    border: none;
+    border-radius: 6px;
+    transition: background-color 0.3s ease, transform 0.1s ease; /* ホバーアニメーション */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+button:hover {
+    background-color: #b30000; /* ホバー時の色 */
+    transform: translateY(-2px); /* 少し浮き上がる */
+}
+
+button:disabled {
+    background-color: #555555; /* 無効時の色 */
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+#winning-banner {
+    position: absolute;
+    top: 50%; /* 垂直方向の中央に */
+    left: 50%;
+    transform: translate(-50%, -50%); /* 中央揃えを調整 */
+    width: 90%; /* 画面全体に広がるように */
+    font-size: 96px; /* 非常に大きく、インパクトを出す */
+    font-weight: bold;
+    display: none; /* 初期状態では非表示 */
+    pointer-events: none; /* クリックイベントを無視 */
+    z-index: 10; /* 他の要素の上に表示 */
+    white-space: nowrap; /* テキストの折り返しを防ぐ */
+    animation: none; /* JSで制御するため初期はnone */
+}
+
+@keyframes popup {
+    0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+    60% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.0); }
+}
+
+/* h1タグのスタイルも追加して、見た目を統一 */
+h1 {
+    color: #f0f0f0; /* 見出しの色 */
+    margin-bottom: 20px;
+    font-size: 2.5em; /* 見出しのサイズ */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* 軽い影 */
+}
+
+/* 未使用の #result スタイルは削除しました */
+/* もし使用する場合は、別途追加してください */
+
+/* スマートフォン向けの調整 */
+@media (max-width: 600px) {
+    #winning-banner {
+        font-size: 48px; /* 小さい画面ではフォントサイズを縮小 */
+        width: 90vw; /* 横幅も調整 */
+    }
+    button {
+        padding: 10px 20px;
+        font-size: 18px;
+    }
+    textarea {
+        height: 80px;
+    }
+}
