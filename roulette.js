@@ -2,11 +2,14 @@
 const canvas = document.getElementById('wheel');
 const ctx = canvas.getContext('2d');
 const entriesTextarea = document.getElementById('entries');
+const spinButton = document.getElementById('spin-btn');
 const winningBanner = document.getElementById('winning-banner');
 
 const usapyoiBanner = document.getElementById('usapyoi-banner');
 const vsImageElement = document.getElementById('vs-image'); // HTMLのimg要素として定義
 const effectVideo = document.getElementById('effect-video');
+
+const gachapin = document.getElementById('gachapin');
 
 // Canvasの中心座標とルーレットの半径、外枠の太さを定数化
 const CANVAS_CENTER_X = canvas.width / 2; // 256
@@ -27,6 +30,7 @@ let tousenSoundPlayed = false;  // 当選SEが再生されたかどうかのフ�
 
 let entries = [];
 let angle = 0; // 現在の回転角度。この値が前回の停止位置を保持します。
+let spinCount = 1;
 
 // ランダム表示する中心画像パスの配列
 const centerImagePaths = [
@@ -280,11 +284,7 @@ function drawPointer() {
 }
 
 // スピンアニメーションを開始する関数
-function startSpinAnimationInternal(spinButtonElement) {
-    const currentEntries = getEffectiveEntries();
-    const num = currentEntries.length;
-    const sliceAngle = 360 / num;
-
+function startSpinAnimationInternal() {
     const fps = 60;
 
     // スピン開始時の角度を記憶
@@ -458,6 +458,9 @@ function startSpinAnimationInternal(spinButtonElement) {
         drawScene(angle); 
 
         const effectivePointerAngle = (270 - (angle % 360) + 360) % 360;
+        const currentEntries = getEffectiveEntries();
+        const num = currentEntries.length;
+        const sliceAngle = 360 / num;
         const currentHoveredIndex = Math.floor(effectivePointerAngle / sliceAngle);
 
         if (currentHoveredIndex !== lastPlayedIndex) {
@@ -472,99 +475,21 @@ function startSpinAnimationInternal(spinButtonElement) {
             // アニメーション終了時の最終描画も drawScene を使用
             drawScene(angle); 
 
-            const finalEffectivePointerAngle = (270 - (angle % 360) + 360) % 360;
-            const winningIndex = Math.floor(finalEffectivePointerAngle / sliceAngle);
-            const actualWinningIndex = (winningIndex + num) % num;
-            const result = currentEntries[actualWinningIndex];
-
-            // 「うさぴょい！」を表示 (左上)
-            usapyoiBanner.textContent = "うさぴょい！";
-            usapyoiBanner.style.display = 'block';
-            usapyoiBanner.style.animation = 'popup-usapyoi 0.5s ease-out forwards'; 
-
-            // ★追加★ usapyoi.mp3 を再生
-            if (!usapyoiSoundPlayed) {
-                usapyoiSound.currentTime = 0;
-                usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
-                usapyoiSoundPlayed = true;
-            }
-
-
-            setTimeout(() => {
-                // vs.png を中央に表示
-                if (vsImage.complete && vsImage.naturalWidth > 0) {
-                    // VS画像
-                    vsImageElement.src = vsImage.src;
-                    vsImageElement.style.display = 'block';
-                    vsImageElement.style.animation = 'popup-vs 0.5s ease-out forwards'; 
-                    vsImageElement.style.width = '150px'; 
-                    vsImageElement.style.height = 'auto';
-                    vsImageElement.style.zIndex = '100'; 
-                    vsImageElement.style.opacity = '1'; 
-
-                    // 背景エフェクト
-                    effectVideo.style.display = 'block';
-                    effectVideo.style.opacity = '1';
-
-                    // 振動エフェクト
-                    document.body.classList.add('shake');
-                    setTimeout(() => {
-                        document.body.classList.remove('shake');
-                    }, 400);
+            if (spinCount == 1) {
+                const resultRandom = Math.random();
+                if (resultRandom <= 0.8) {
+                    showResult();
                 } else {
-                    console.warn("vs.png not loaded, skipping vs.png display.");
+                    setTimeout(() => {
+                        showGachapin();
+                        setTimeout(() => {
+                            spin(2);
+                        }, 1500);
+                    }, 1500);
                 }
-
-                // ★追加★ vs.mp3 を再生
-                if (!vsSoundPlayed) {
-                    vsSound.currentTime = 0;
-                    vsSound.play().catch(e => console.error("Error playing vs.mp3:", e));
-                    vsSoundPlayed = true;
-                }
-
-                setTimeout(() => {
-                    // 当選内容を右下に表示
-                    winningBanner.textContent = result;
-                    winningBanner.style.display = 'block';
-                    winningBanner.style.animation = 'popup-winning 0.5s ease-out forwards'; 
-
-                    // テキストシャドウを動的に生成 (既存ロジック - 手動修正箇所)
-                    const winningHue = actualWinningIndex * 360 / num;
-                    const winningColor = `hsl(${winningHue}, 80%, 70%)`;
-                    winningBanner.style.color = winningColor;
-                    const shadowLayers = [
-                        `0 0 10px hsl(${winningHue}, 90%, 75%)`,
-                        `0 0 20px hsl(${winningHue}, 80%, 80%)`,
-                        `0 0 30px hsl(${winningHue}, 70%, 85%)`,
-                        `0 0 40px hsl(${winningHue}, 60%, 90%)`,
-                        `0 0 50px hsl(${winningHue}, 40%, 95%)`,
-                        `0 0 60px hsl(${winningHue}, 20%, 98%)`,
-                        `0 0 70px hsl(${winningHue}, 0%, 100%)`,
-                        `1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
-                        `-1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
-                        `-1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
-                        `1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
-                        `1px 0 0.5px rgb(255,255,255)`,    // 手動修正箇所
-                        `-1px 0 0.5px rgb(255,255,255)`,  // 手動修正箇所
-                        `0 1px 0.5px rgb(255,255,255)`,    // 手動修正箇所
-                        `0 -1px 0.5px rgb(255,255,255)`    // 手動修正箇所
-                    ];
-                    winningBanner.style.textShadow = shadowLayers.join(', ');
-                    winningBanner.style.opacity = '1'; 
-
-                    // ★変更点★ tousen.mp3 を再生 (元々ここにあった)
-                    if (!tousenSoundPlayed) {
-                        tousenSound.currentTime = 0;
-                        tousenSound.play().catch(e => console.error("Error playing tousen.mp3:", e));
-                        tousenSoundPlayed = true;
-                    }
-
-                    // 最終当選内容表示後、ボタンを有効にする
-                    entriesTextarea.disabled = false;
-                    if (spinButtonElement) spinButtonElement.disabled = false;
-
-                }, 1000); 
-            }, 1000); 
+            } else {
+                showResult();
+            }
 
             // アニメーション終了時にフラグをリセット 
             hasOverlayTriggeredInPhase3 = false;
@@ -575,19 +500,124 @@ function startSpinAnimationInternal(spinButtonElement) {
     requestAnimationFrame(animate);
 }
 
+function showResult() {
+    setTimeout(() => {
+        // 「うさぴょい！」を表示 (左上)
+        usapyoiBanner.textContent = "うさぴょい！";
+        usapyoiBanner.style.display = 'block';
+        usapyoiBanner.style.animation = 'popup-usapyoi 0.5s ease-out forwards'; 
+
+        // ★追加★ usapyoi.mp3 を再生
+        if (!usapyoiSoundPlayed) {
+            usapyoiSound.currentTime = 0;
+            usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
+            usapyoiSoundPlayed = true;
+        }
+
+        setTimeout(() => {
+            // vs.png を中央に表示
+            if (vsImage.complete && vsImage.naturalWidth > 0) {
+                // VS画像
+                vsImageElement.src = vsImage.src;
+                vsImageElement.style.display = 'block';
+                vsImageElement.style.animation = 'popup-vs 0.5s ease-out forwards'; 
+                vsImageElement.style.width = '150px'; 
+                vsImageElement.style.height = 'auto';
+                vsImageElement.style.zIndex = '100'; 
+                vsImageElement.style.opacity = '1'; 
+
+                // 背景エフェクト
+                effectVideo.style.display = 'block';
+                effectVideo.style.opacity = '1';
+
+                // 振動エフェクト
+                document.body.classList.add('shake');
+                setTimeout(() => {
+                    document.body.classList.remove('shake');
+                }, 400);
+            } else {
+                console.warn("vs.png not loaded, skipping vs.png display.");
+            }
+
+            // ★追加★ vs.mp3 を再生
+            if (!vsSoundPlayed) {
+                vsSound.currentTime = 0;
+                vsSound.play().catch(e => console.error("Error playing vs.mp3:", e));
+                vsSoundPlayed = true;
+            }
+
+            setTimeout(() => {
+                const finalEffectivePointerAngle = (270 - (angle % 360) + 360) % 360;
+                const currentEntries = getEffectiveEntries();
+                const num = currentEntries.length;
+                const sliceAngle = 360 / num;
+                const winningIndex = Math.floor(finalEffectivePointerAngle / sliceAngle);
+                const actualWinningIndex = (winningIndex + num) % num;
+                const result = currentEntries[actualWinningIndex];
+
+                // 当選内容を右下に表示
+                winningBanner.textContent = result;
+                winningBanner.style.display = 'block';
+                winningBanner.style.animation = 'popup-winning 0.5s ease-out forwards'; 
+
+                // テキストシャドウを動的に生成 (既存ロジック - 手動修正箇所)
+                const winningHue = actualWinningIndex * 360 / num;
+                const winningColor = `hsl(${winningHue}, 80%, 70%)`;
+                winningBanner.style.color = winningColor;
+                const shadowLayers = [
+                    `0 0 10px hsl(${winningHue}, 90%, 75%)`,
+                    `0 0 20px hsl(${winningHue}, 80%, 80%)`,
+                    `0 0 30px hsl(${winningHue}, 70%, 85%)`,
+                    `0 0 40px hsl(${winningHue}, 60%, 90%)`,
+                    `0 0 50px hsl(${winningHue}, 40%, 95%)`,
+                    `0 0 60px hsl(${winningHue}, 20%, 98%)`,
+                    `0 0 70px hsl(${winningHue}, 0%, 100%)`,
+                    `1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                    `-1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                    `-1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                    `1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                    `1px 0 0.5px rgb(255,255,255)`,    // 手動修正箇所
+                    `-1px 0 0.5px rgb(255,255,255)`,  // 手動修正箇所
+                    `0 1px 0.5px rgb(255,255,255)`,    // 手動修正箇所
+                    `0 -1px 0.5px rgb(255,255,255)`    // 手動修正箇所
+                ];
+                winningBanner.style.textShadow = shadowLayers.join(', ');
+                winningBanner.style.opacity = '1'; 
+
+                // 振動エフェクト
+                document.body.classList.add('shake');
+                setTimeout(() => {
+                    document.body.classList.remove('shake');
+                }, 400);
+
+                // ★変更点★ tousen.mp3 を再生 (元々ここにあった)
+                if (!tousenSoundPlayed) {
+                    tousenSound.currentTime = 0;
+                    tousenSound.play().catch(e => console.error("Error playing tousen.mp3:", e));
+                    tousenSoundPlayed = true;
+                }
+
+                // 最終当選内容表示後、ボタンを有効にする
+                entriesTextarea.disabled = false;
+                spinButton.disabled = false;
+            }, 1000); 
+        }, 1000); 
+    }, 500); 
+}
+
 // spin() 関数は画像の初期切り替えとアニメーション開始を管理
-function spin() {
+function spin(count = 1) {
     updateEntries();
     
     entriesTextarea.disabled = true;
-    const spinButton = document.getElementById('spin-btn');
-    if (spinButton) spinButton.disabled = true;
+    spinButton.disabled = true;
 
     // ★重要変更点★ 新しいスピン開始時にすべてのバナー/画像要素を非表示にする
     winningBanner.style.display = 'none';
     usapyoiBanner.style.display = 'none';
     vsImageElement.style.display = 'none';
     effectVideo.style.display = 'none';
+    if (count === 1) gachapin.style.animation = '';
 
     // opacity もリセットしておくと、次のアニメーションがスムーズになる
     winningBanner.style.opacity = '0';
@@ -598,7 +628,6 @@ function spin() {
     winningBanner.style.animation = 'none';
     usapyoiBanner.style.animation = 'none';
     vsImageElement.style.animation = 'none';
-
 
     // オーバーレイ演出の状態を初期化（新しいスピンのたびにリセット）
     overlayImageActive = false;
@@ -612,6 +641,8 @@ function spin() {
     usapyoiSoundPlayed = false;
     vsSoundPlayed = false;
     tousenSoundPlayed = false;
+
+    spinCount = count;
 
     const newImageIndex = Math.floor(Math.random() * centerImagePaths.length);
     if (newImageIndex !== currentImageIndex && centerImagePaths.length > 1) {
@@ -645,7 +676,7 @@ function spin() {
                             requestAnimationFrame(animateInitialFadeIn);
                         } else {
                             imageFadePhase = 'stable';
-                            startSpinAnimationInternal(spinButton);
+                            startSpinAnimationInternal();
                         }
                     }
                     requestAnimationFrame(animateInitialFadeIn);
@@ -655,7 +686,7 @@ function spin() {
                     imageOpacity = 1;
                     imageFadePhase = 'stable';
                     drawScene(angle); 
-                    startSpinAnimationInternal(spinButton);
+                    startSpinAnimationInternal();
                 };
             }
         }
@@ -664,6 +695,11 @@ function spin() {
     } else {
         imageOpacity = 1;
         imageFadePhase = 'stable';
-        startSpinAnimationInternal(spinButton);
+        startSpinAnimationInternal();
     }
+}
+
+function showGachapin() {
+    gachapin.style.animation = 'popup-gachapin 0.4s ease-out forwards';
+    usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
 }
