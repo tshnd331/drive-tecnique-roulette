@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ルーレット</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -16,10 +17,18 @@
     <div id="canvas-wrapper">
         <canvas id="wheel" width="512" height="512"></canvas>
     </div>
-    <div id="winning-banner"></div>
-  </div>
 
-  <!-- ↓ これ（<p id="result">）は削除済み -->
+    <video id="effect-video" class="result-banner" autoplay loop muted playsinline>
+        <source src="effect1.webm" type="video/webm">
+    </video>
+
+    <div id="usapyoi-banner" class="result-banner"></div>
+
+    <img id="vs-image" src="" alt="VS" class="result-image">
+
+    <div id="winning-banner" class="result-banner"></div>
+
+  </div>
 
   <script src="roulette.js"></script>
 </body>

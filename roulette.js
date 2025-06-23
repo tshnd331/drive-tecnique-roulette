@@ -4,6 +4,10 @@ const ctx = canvas.getContext('2d');
 const entriesTextarea = document.getElementById('entries');
 const winningBanner = document.getElementById('winning-banner');
 
+const usapyoiBanner = document.getElementById('usapyoi-banner');
+const vsImageElement = document.getElementById('vs-image'); // HTMLのimg要素として定義
+const effectVideo = document.getElementById('effect-video');
+
 // Canvasの中心座標とルーレットの半径、外枠の太さを定数化
 const CANVAS_CENTER_X = canvas.width / 2; // 256
 const CANVAS_CENTER_Y = canvas.height / 2; // 256
@@ -12,9 +16,14 @@ const OUTER_FRAME_THICKNESS = 15; // 外枠の太さ (調整可能)
 
 const tickSound = new Audio('sound.mp3');
 
-// 当選時SEのAudioオブジェクト
-const tousenSound = new Audio('tousen.mp3');
-let tousenSoundPlayed = false; // 当選SEが再生されたかどうかのフラグ
+// ★追加・変更点★ 各サウンドファイルの定義と再生フラグ
+const usapyoiSound = new Audio('usapyoi.mp3'); // うさぴょい！表示時
+const vsSound = new Audio('vs.mp3');           // vs.png表示時
+const tousenSound = new Audio('tousen.mp3');   // 当選内容表示時
+
+let usapyoiSoundPlayed = false; // うさぴょい！SEが再生されたかどうかのフラグ
+let vsSoundPlayed = false;      // vs.png SEが再生されたかどうかのフラグ
+let tousenSoundPlayed = false;  // 当選SEが再生されたかどうかのフラグ
 
 let entries = [];
 let angle = 0; // 現在の回転角度。この値が前回の停止位置を保持します。
@@ -27,7 +36,7 @@ const centerImagePaths = [
     'usa_bakemono.png',
     'usa_tsuchi.png',
     'usa_tsuchinoko.png',
-    // 必要に応じてさらに追加
+    'usa_kobushi.png',
 ];
 
 // 画像オブジェクトをグローバルで宣言
@@ -41,7 +50,7 @@ const FADE_DURATION = 300; // フェードアニメーションの時間 (ms)
 let fadeStartTime = 0;
 
 // phase2での中心画像切り替え関連の変数
-const PHASE2_IMAGE_SWITCH_PROBABILITY = 0.5; // ★ここを0.5に変更★
+const PHASE2_IMAGE_SWITCH_PROBABILITY = 0.5;
 let hasSwitchedInPhase2 = false; // 今回のスピンでPhase2中に切り替えたかどうかのフラグ
 
 // === 新しい演出用の変数と定数 ===
@@ -50,9 +59,20 @@ let overlayImageOpacity = 0; // 初期は完全に透明
 let overlayFadePhase = 'none'; // 'none', 'fadeIn', 'fadeOut'
 let overlayFadeStartTime = 0;
 const OVERLAY_FADE_DURATION = 1500; // オーバーレイのフェード時間 (ms) - 長めに設定
-const OVERLAY_EFFECT_PROBABILITY_PER_FRAME = 0.5; // ★ここを0.5に変更★
-const OVERLAY_MAX_OPACITY = 0.2; // オーバーレイの最大不透明度 (うっすらと)
+const OVERLAY_EFFECT_PROBABILITY_PER_FRAME = 0.5;
+const OVERLAY_MAX_OPACITY = 0.4; // オーバーレイの最大不透明度 (うっすらと)
 let hasOverlayTriggeredInPhase3 = false; // Phase3でこの演出をトリガーしたかどうかのフラグ
+
+// vs.png 画像の読み込み
+const vsImage = new Image();
+vsImage.src = 'vs.png';
+
+vsImage.onload = () => {
+    console.log('vs.png loaded successfully');
+};
+vsImage.onerror = () => {
+    console.error('Failed to load vs.png');
+};
 
 let currentPhase = 0; // 現在のルーレットフェーズ (1, 2, 3, 4)
 let animationComplete = false; // アニメーションが完了したかどうか
@@ -94,7 +114,19 @@ drawStatic();
 entriesTextarea.addEventListener('input', () => {
   updateEntries();
   localStorage.setItem('roulette_entries', entriesTextarea.value);
+  // バナーも非表示にする
   winningBanner.style.display = 'none';
+  usapyoiBanner.style.display = 'none';
+  vsImageElement.style.display = 'none';
+  effectVideo.style.display = 'none';
+  // opacityとanimationもリセット
+  winningBanner.style.opacity = '0';
+  usapyoiBanner.style.opacity = '0';
+  vsImageElement.style.opacity = '0';
+  winningBanner.style.animation = 'none';
+  usapyoiBanner.style.animation = 'none';
+  vsImageElement.style.animation = 'none';
+
   drawStatic();
 });
 
@@ -125,14 +157,12 @@ function drawScene(rotationAngle) {
 
     // === オーバーレイ画像の描画 ===
     if (overlayImageActive && centerImage.complete && centerImage.naturalWidth > 0) {
-        // console.log('emo: Drawing overlay now!', `opacity=${overlayImageOpacity.toFixed(2)}`); // デバッグ用ログ
         ctx.save();
         ctx.globalAlpha = overlayImageOpacity;
-        ctx.filter = 'sepia(100%) saturate(150%) brightness(80%) hue-rotate(30deg)'; // エモい感じのフィルター
+        ctx.filter = 'sepia(70%) saturate(150%) brightness(80%) hue-rotate(15deg)'; // エモい感じのフィルター
         ctx.drawImage(centerImage, 0, 0, canvas.width, canvas.height); // Canvas全体に描画
         ctx.restore();
     }
-    // =============================
 }
 
 // 静止状態の描画 (回転なし)
@@ -234,7 +264,7 @@ function drawPointer() {
   ctx.beginPath();
   
   // ポインターの底辺の上端Y座標
-  const POINTER_BASE_TOP_Y = 20; 
+  const POINTER_BASE_TOP_Y = 16; // 手動修正箇所
   // ポインターの頂点の下端Y座標 (ポインターの高さ30px)
   const POINTER_TIP_BOTTOM_Y = POINTER_BASE_TOP_Y + 30; 
 
@@ -271,7 +301,11 @@ function startSpinAnimationInternal(spinButtonElement) {
     overlayImageOpacity = 0;
     overlayFadePhase = 'none';
     overlayFadeStartTime = 0;
-    tousenSoundPlayed = false; // 当選SE再生フラグをリセット
+    
+    // ★変更点★ 各サウンドの再生フラグをリセット
+    usapyoiSoundPlayed = false;
+    vsSoundPlayed = false;
+    tousenSoundPlayed = false;
 
     const MIN_DECELERATION_TIME = 1000;
     const MAX_DECELERATION_TIME = 5000;
@@ -370,10 +404,11 @@ function startSpinAnimationInternal(spinButtonElement) {
                 if (Math.random() < OVERLAY_EFFECT_PROBABILITY_PER_FRAME) {
                     console.log("!!! Initiating emo overlay effect in Phase 3 !!!");
                     overlayImageActive = true;
-                    // console.log("getPhaseSpeed: overlayImageActive set to TRUE"); // デバッグログ
                     overlayFadePhase = 'fadeIn';
                     overlayFadeStartTime = performance.now();
                     hasOverlayTriggeredInPhase3 = true; // 今回のスピンでトリガーしたことを記録
+                } else {
+                    hasOverlayTriggeredInPhase3 = true; // 抽選に外れても、このスピン中は再抽選しない
                 }
             }
 
@@ -384,18 +419,13 @@ function startSpinAnimationInternal(spinButtonElement) {
                     if (overlayImageOpacity >= OVERLAY_MAX_OPACITY) {
                         overlayFadePhase = 'fadeOut'; // フェードイン完了後、すぐにフェードアウトへ
                         overlayFadeStartTime = performance.now(); // フェードアウト開始時刻を更新
-                        // console.log("getPhaseSpeed: Overlay fade IN complete, starting fade OUT."); // デバッグログ
                     }
                 } else if (overlayFadePhase === 'fadeOut') {
-                    // フェードアウトの計算では、elapsedOverlayがフェードアウト開始からの時間になるようにする
                     const elapsedFadeOut = performance.now() - overlayFadeStartTime;
                     overlayImageOpacity = OVERLAY_MAX_OPACITY * (1 - Math.min(1, elapsedFadeOut / OVERLAY_FADE_DURATION));
                     if (overlayImageOpacity <= 0) {
                         overlayImageActive = false;
-                        // console.log("getPhaseSpeed: overlayImageActive set to FALSE (fade out complete)."); // デバッグログ
                         overlayFadePhase = 'none';
-                        // hasOverlayTriggeredInPhase3 はここではリセットしない！
-                        // console.log("getPhaseSpeed: Overlay effect finished."); // デバッグログ
                     }
                 }
             }
@@ -403,22 +433,16 @@ function startSpinAnimationInternal(spinButtonElement) {
             // Phase 3 以外ではオーバーレイを非アクティブ化し、状態をリセット
             if (overlayImageActive && overlayFadePhase !== 'none') {
                 overlayImageActive = false;
-                // console.log("getPhaseSpeed: overlayImageActive set to FALSE (Exiting Phase 3)."); // デバッグログ
                 overlayImageOpacity = 0;
                 overlayFadePhase = 'none';
             }
-            // hasOverlayTriggeredInPhase3 のリセットは spin() と animate() の終了時のみ行う
-            // ここでは行わないことで、フェーズ3を抜けても一度トリガーされたフラグを維持
         }
         // ===========================================
-
 
         if (newPhase !== currentPhase) {
             console.log(`--- Phase Changed: ${currentPhase} -> ${newPhase} ---`);
             currentPhase = newPhase;
         }
-        // console.log(`Phase: ${currentPhase}, Time: ${time.toFixed(0)}ms, Speed: ${speed.toFixed(2)}, AngleProgress: ${angle.toFixed(2)}`); // デバッグ用
-
         return speed;
     }
 
@@ -448,45 +472,101 @@ function startSpinAnimationInternal(spinButtonElement) {
             // アニメーション終了時の最終描画も drawScene を使用
             drawScene(angle); 
 
-            // 当選内容表示前に当選SEを再生
-            if (!tousenSoundPlayed) {
-                tousenSound.currentTime = 0; // 再生位置を先頭に戻す
-                tousenSound.play().catch(e => console.error("Error playing tousen.mp3:", e)); // エラーハンドリングを追加
-                tousenSoundPlayed = true; // 再生フラグを立てる
-            }
-
             const finalEffectivePointerAngle = (270 - (angle % 360) + 360) % 360;
             const winningIndex = Math.floor(finalEffectivePointerAngle / sliceAngle);
             const actualWinningIndex = (winningIndex + num) % num;
-
             const result = currentEntries[actualWinningIndex];
-            winningBanner.textContent = result;
-            winningBanner.style.display = 'block';
-            winningBanner.style.animation = 'popup 0.5s ease-out';
+
+            // 「うさぴょい！」を表示 (左上)
+            usapyoiBanner.textContent = "うさぴょい！";
+            usapyoiBanner.style.display = 'block';
+            usapyoiBanner.style.animation = 'popup-usapyoi 0.5s ease-out forwards'; 
+
+            // ★追加★ usapyoi.mp3 を再生
+            if (!usapyoiSoundPlayed) {
+                usapyoiSound.currentTime = 0;
+                usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
+                usapyoiSoundPlayed = true;
+            }
+
+
             setTimeout(() => {
-                winningBanner.style.animation = '';
-            }, 500);
+                // vs.png を中央に表示
+                if (vsImage.complete && vsImage.naturalWidth > 0) {
+                    // VS画像
+                    vsImageElement.src = vsImage.src;
+                    vsImageElement.style.display = 'block';
+                    vsImageElement.style.animation = 'popup-vs 0.5s ease-out forwards'; 
+                    vsImageElement.style.width = '150px'; 
+                    vsImageElement.style.height = 'auto';
+                    vsImageElement.style.zIndex = '100'; 
+                    vsImageElement.style.opacity = '1'; 
 
-            const winningHue = actualWinningIndex * 360 / num;
-            const winningColor = `hsl(${winningHue}, 80%, 70%)`;
-            winningBanner.style.color = winningColor;
+                    // 背景エフェクト
+                    effectVideo.style.display = 'block';
+                    effectVideo.style.opacity = '1';
 
-            // text-shadow を動的に生成
-            const shadowLayers = [
-                `0 0 10px hsl(${winningHue}, 90%, 75%)`, // 少し明るく彩度高め
-                `0 0 20px hsl(${winningHue}, 80%, 80%)`,
-                `0 0 30px hsl(${winningHue}, 70%, 85%)`,
-                `0 0 40px hsl(${winningHue}, 60%, 90%)`,
-                `0 0 50px hsl(${winningHue}, 40%, 95%)`,
-                `0 0 60px hsl(${winningHue}, 20%, 98%)`,
-                `0 0 70px hsl(${winningHue}, 0%, 100%)`  // ほぼ白
-            ];
-            winningBanner.style.textShadow = shadowLayers.join(', ');
+                    // 振動エフェクト
+                    document.body.classList.add('shake');
+                    setTimeout(() => {
+                        document.body.classList.remove('shake');
+                    }, 400);
+                } else {
+                    console.warn("vs.png not loaded, skipping vs.png display.");
+                }
 
-            entriesTextarea.disabled = false;
-            if (spinButtonElement) spinButtonElement.disabled = false;
+                // ★追加★ vs.mp3 を再生
+                if (!vsSoundPlayed) {
+                    vsSound.currentTime = 0;
+                    vsSound.play().catch(e => console.error("Error playing vs.mp3:", e));
+                    vsSoundPlayed = true;
+                }
 
-            // アニメーション終了時にフラグをリセット
+                setTimeout(() => {
+                    // 当選内容を右下に表示
+                    winningBanner.textContent = result;
+                    winningBanner.style.display = 'block';
+                    winningBanner.style.animation = 'popup-winning 0.5s ease-out forwards'; 
+
+                    // テキストシャドウを動的に生成 (既存ロジック - 手動修正箇所)
+                    const winningHue = actualWinningIndex * 360 / num;
+                    const winningColor = `hsl(${winningHue}, 80%, 70%)`;
+                    winningBanner.style.color = winningColor;
+                    const shadowLayers = [
+                        `0 0 10px hsl(${winningHue}, 90%, 75%)`,
+                        `0 0 20px hsl(${winningHue}, 80%, 80%)`,
+                        `0 0 30px hsl(${winningHue}, 70%, 85%)`,
+                        `0 0 40px hsl(${winningHue}, 60%, 90%)`,
+                        `0 0 50px hsl(${winningHue}, 40%, 95%)`,
+                        `0 0 60px hsl(${winningHue}, 20%, 98%)`,
+                        `0 0 70px hsl(${winningHue}, 0%, 100%)`,
+                        `1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                        `-1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                        `-1px 1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                        `1px -1px 0.5px rgb(255,255,255)`, // 手動修正箇所
+                        `1px 0 0.5px rgb(255,255,255)`,    // 手動修正箇所
+                        `-1px 0 0.5px rgb(255,255,255)`,  // 手動修正箇所
+                        `0 1px 0.5px rgb(255,255,255)`,    // 手動修正箇所
+                        `0 -1px 0.5px rgb(255,255,255)`    // 手動修正箇所
+                    ];
+                    winningBanner.style.textShadow = shadowLayers.join(', ');
+                    winningBanner.style.opacity = '1'; 
+
+                    // ★変更点★ tousen.mp3 を再生 (元々ここにあった)
+                    if (!tousenSoundPlayed) {
+                        tousenSound.currentTime = 0;
+                        tousenSound.play().catch(e => console.error("Error playing tousen.mp3:", e));
+                        tousenSoundPlayed = true;
+                    }
+
+                    // 最終当選内容表示後、ボタンを有効にする
+                    entriesTextarea.disabled = false;
+                    if (spinButtonElement) spinButtonElement.disabled = false;
+
+                }, 1000); 
+            }, 1000); 
+
+            // アニメーション終了時にフラグをリセット 
             hasOverlayTriggeredInPhase3 = false;
             hasSwitchedInPhase2 = false;
         }
@@ -502,16 +582,36 @@ function spin() {
     entriesTextarea.disabled = true;
     const spinButton = document.getElementById('spin-btn');
     if (spinButton) spinButton.disabled = true;
-    winningBanner.style.display = 'none'; // 新しいスピン開始時にバナーを非表示に
+
+    // ★重要変更点★ 新しいスピン開始時にすべてのバナー/画像要素を非表示にする
+    winningBanner.style.display = 'none';
+    usapyoiBanner.style.display = 'none';
+    vsImageElement.style.display = 'none';
+    effectVideo.style.display = 'none';
+
+    // opacity もリセットしておくと、次のアニメーションがスムーズになる
+    winningBanner.style.opacity = '0';
+    usapyoiBanner.style.opacity = '0';
+    vsImageElement.style.opacity = '0';
+
+    // CSSアニメーションプロパティもリセット
+    winningBanner.style.animation = 'none';
+    usapyoiBanner.style.animation = 'none';
+    vsImageElement.style.animation = 'none';
+
 
     // オーバーレイ演出の状態を初期化（新しいスピンのたびにリセット）
     overlayImageActive = false;
     overlayImageOpacity = 0;
     overlayFadePhase = 'none';
     overlayFadeStartTime = 0;
-    hasOverlayTriggeredInPhase3 = false; // スピン開始時にリセット
-    hasSwitchedInPhase2 = false; // スピン開始時にリセット
-    tousenSoundPlayed = false; // 当選SE再生フラグをリセット
+    hasOverlayTriggeredInPhase3 = false;
+    hasSwitchedInPhase2 = false;
+    
+    // ★変更点★ 各サウンドの再生フラグをリセット
+    usapyoiSoundPlayed = false;
+    vsSoundPlayed = false;
+    tousenSoundPlayed = false;
 
     const newImageIndex = Math.floor(Math.random() * centerImagePaths.length);
     if (newImageIndex !== currentImageIndex && centerImagePaths.length > 1) {
