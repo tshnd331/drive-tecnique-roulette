@@ -7,7 +7,8 @@ const winningBanner = document.getElementById('winning-banner');
 
 const usapyoiBanner = document.getElementById('usapyoi-banner');
 const vsImageElement = document.getElementById('vs-image'); // HTMLのimg要素として定義
-const effectVideo = document.getElementById('effect-video');
+const effectVideo1 = document.getElementById('effect-video1');
+const effectVideo2 = document.getElementById('effect-video2');
 
 const gachapin = document.getElementById('gachapin');
 
@@ -23,6 +24,7 @@ const tickSound = new Audio('sound.mp3');
 const usapyoiSound = new Audio('usapyoi.mp3'); // うさぴょい！表示時
 const vsSound = new Audio('vs.mp3');           // vs.png表示時
 const tousenSound = new Audio('tousen.mp3');   // 当選内容表示時
+const rakuraiSound = new Audio('rakurai.mp3');   // 当選内容表示時
 
 let usapyoiSoundPlayed = false; // うさぴょい！SEが再生されたかどうかのフラグ
 let vsSoundPlayed = false;      // vs.png SEが再生されたかどうかのフラグ
@@ -41,6 +43,9 @@ const centerImagePaths = [
     'usa_tsuchi.png',
     'usa_tsuchinoko.png',
     'usa_kobushi.png',
+    'usa_hihi.png',
+    'usa_money.png',
+    'usa_ssr.png',
 ];
 
 // 画像オブジェクトをグローバルで宣言
@@ -122,7 +127,8 @@ entriesTextarea.addEventListener('input', () => {
   winningBanner.style.display = 'none';
   usapyoiBanner.style.display = 'none';
   vsImageElement.style.display = 'none';
-  effectVideo.style.display = 'none';
+  effectVideo1.style.display = 'none';
+  effectVideo2.style.display = 'none';
   // opacityとanimationもリセット
   winningBanner.style.opacity = '0';
   usapyoiBanner.style.opacity = '0';
@@ -130,13 +136,17 @@ entriesTextarea.addEventListener('input', () => {
   winningBanner.style.animation = 'none';
   usapyoiBanner.style.animation = 'none';
   vsImageElement.style.animation = 'none';
+  gachapin.style.animation = '';
 
   drawStatic();
 });
 
-function updateEntries() {
-  const input = entriesTextarea.value;
-  entries = input.split('\n').map(e => e.trim()).filter(e => e);
+function updateEntries(input = null) {
+  if (!input) {
+    entries = entriesTextarea.value.split('\n').map(e => e.trim()).filter(e => e);
+  } else {
+      entries = input
+  }
 }
 
 function getEffectiveEntries() {
@@ -284,7 +294,7 @@ function drawPointer() {
 }
 
 // スピンアニメーションを開始する関数
-function startSpinAnimationInternal() {
+function startSpinAnimationInternal(ratio = 1.0) {
     const fps = 60;
 
     // スピン開始時の角度を記憶
@@ -307,13 +317,13 @@ function startSpinAnimationInternal() {
     vsSoundPlayed = false;
     tousenSoundPlayed = false;
 
-    const MIN_DECELERATION_TIME = 1000;
-    const MAX_DECELERATION_TIME = 5000;
+    const MIN_DECELERATION_TIME = 4000;
+    const MAX_DECELERATION_TIME = 8000;
     const DECELERATION_TIME = MIN_DECELERATION_TIME + Math.random() * (MAX_DECELERATION_TIME - MIN_DECELERATION_TIME);
 
-    const PHASE_1_END_TIME = 3000;
-    const PHASE_2_END_TIME = 6000;
-    const PHASE_3_END_TIME = 11000;
+    const PHASE_1_END_TIME = 3000 * ratio;
+    const PHASE_2_END_TIME = 6000 * ratio;
+    const PHASE_3_END_TIME = 11000 * ratio;
 
     function getPhaseSpeed(time) {
         let speed = 0;
@@ -477,14 +487,15 @@ function startSpinAnimationInternal() {
 
             if (spinCount == 1) {
                 const resultRandom = Math.random();
-                if (resultRandom <= 0.8) {
+                if (resultRandom <= 0.7) {
                     showResult();
                 } else {
                     setTimeout(() => {
-                        showGachapin();
-                        setTimeout(() => {
-                            spin(2);
-                        }, 1500);
+                        showGachapin().then(() => {
+                            switchRouletteBoard().then(() => {
+                                spin(2, 2);
+                            });
+                        });
                     }, 1500);
                 }
             } else {
@@ -527,8 +538,8 @@ function showResult() {
                 vsImageElement.style.opacity = '1'; 
 
                 // 背景エフェクト
-                effectVideo.style.display = 'block';
-                effectVideo.style.opacity = '1';
+                effectVideo1.style.display = 'block';
+                effectVideo1.style.opacity = '1';
 
                 // 振動エフェクト
                 document.body.classList.add('shake');
@@ -606,9 +617,9 @@ function showResult() {
 }
 
 // spin() 関数は画像の初期切り替えとアニメーション開始を管理
-function spin(count = 1) {
-    updateEntries();
-    
+function spin(count = 1, ratio = 1.0) {
+    if (count === 1) updateEntries();
+
     entriesTextarea.disabled = true;
     spinButton.disabled = true;
 
@@ -616,7 +627,8 @@ function spin(count = 1) {
     winningBanner.style.display = 'none';
     usapyoiBanner.style.display = 'none';
     vsImageElement.style.display = 'none';
-    effectVideo.style.display = 'none';
+    effectVideo1.style.display = 'none';
+    effectVideo2.style.display = 'none';
     if (count === 1) gachapin.style.animation = '';
 
     // opacity もリセットしておくと、次のアニメーションがスムーズになる
@@ -676,7 +688,7 @@ function spin(count = 1) {
                             requestAnimationFrame(animateInitialFadeIn);
                         } else {
                             imageFadePhase = 'stable';
-                            startSpinAnimationInternal();
+                            startSpinAnimationInternal(ratio);
                         }
                     }
                     requestAnimationFrame(animateInitialFadeIn);
@@ -686,7 +698,7 @@ function spin(count = 1) {
                     imageOpacity = 1;
                     imageFadePhase = 'stable';
                     drawScene(angle); 
-                    startSpinAnimationInternal();
+                    startSpinAnimationInternal(ratio);
                 };
             }
         }
@@ -695,11 +707,46 @@ function spin(count = 1) {
     } else {
         imageOpacity = 1;
         imageFadePhase = 'stable';
-        startSpinAnimationInternal();
+        startSpinAnimationInternal(ratio);
     }
 }
 
 function showGachapin() {
-    gachapin.style.animation = 'popup-gachapin 0.4s ease-out forwards';
-    usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
+    return new Promise(resolve => {
+        gachapin.style.animation = 'popup-gachapin 0.4s ease-out forwards';
+        usapyoiSound.play().catch(e => console.error("Error playing usapyoi.mp3:", e));
+
+        setTimeout(() => {
+            resolve();
+        }, 1500);
+    });
+}
+
+function switchRouletteBoard(newEntries = null) {
+    return new Promise(resolve => {
+        if (!newEntries) {
+            newEntries = entries;
+            if (entries.length > 4) {
+                const shuffled = [...entries].sort(() => Math.random() - 0.5);
+                newEntries = shuffled.slice(0, 4);
+            }
+        }
+
+        effectVideo2.style.display = 'block';
+        effectVideo2.style.opacity = '1';
+        effectVideo2.currentTime = 0;
+        effectVideo2.play();
+
+        rakuraiSound.currentTime = 0;
+        rakuraiSound.play().catch(e => console.error("Error playing rakurai.mp3:", e));
+        rakuraiSoundPlayed = true;
+
+        setTimeout(() => {
+            updateEntries(newEntries);
+            drawScene(angle);
+            setTimeout(() => {
+                resolve();
+            }, 3500);
+        }, 1500);
+    });
 }

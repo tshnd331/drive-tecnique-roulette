@@ -200,7 +200,7 @@ h1 {
     /* top/left/right/bottom の値で位置を制御し、transformはスケールのみにする */
 }
 
-#effect-video {
+.effect-video {
     position: absolute;
     top: 0;
     left: 0;
